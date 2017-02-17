@@ -24,5 +24,6 @@ requires:
   JSON: 0
   Promises: 0
   Scalar::Util: 0
+  URI::Escape: 0
   perl: 5.16.0
 version: undef

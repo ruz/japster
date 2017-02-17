@@ -9,6 +9,7 @@ requires
     'JSON' => 0,
     'Async::ContextSwitcher' => 0,
     'Carp' => 0,
+    'URI::Escape' => 0,
 ;
 
 test_requires

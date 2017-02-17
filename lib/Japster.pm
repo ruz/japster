@@ -15,6 +15,7 @@ use Promises qw(deferred);
 use Async::ContextSwitcher;
 use Scalar::Util qw(blessed);
 use Carp qw(confess);
+use URI::Escape qw(uri_unescape);
 
 __PACKAGE__->register_exceptions(
     "bad_relationship_operation" => {
@@ -414,7 +415,7 @@ sub query_parameters {
     return {} unless defined $env->{QUERY_STRING} && length $env->{QUERY_STRING};
 
     my @query =
-        map { s/\+/ /g; URI::Escape::uri_unescape($_) }
+        map { s/\+/ /g; uri_unescape($_) }
         map { /=/ ? split(/=/, $_, 2) : ($_ => '') }
         split /[&;]/, $env->{QUERY_STRING};
 
