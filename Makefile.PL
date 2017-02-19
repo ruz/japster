@@ -10,6 +10,7 @@ requires
     'Async::ContextSwitcher' => 0,
     'Carp' => 0,
     'URI::Escape' => 0,
+    'Encode' => 0,
 ;
 
 test_requires

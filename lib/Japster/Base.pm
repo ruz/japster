@@ -2,7 +2,11 @@ use strict;
 use warnings;
 
 package Japster::Base;
+
 use Japster::Exception;
+use Encode;
+use JSON;
+our $JSON = JSON->new->utf8;
 
 sub new {
     my $proto = shift;
@@ -37,7 +41,7 @@ sub simple_psgi_response {
     my @res;
     if ($type eq 'json') {
         $headers->{'content-type'} = 'application/json; charset=UTF-8';
-        $data = $self->u->json->encode($data);
+        $data = $JSON->encode($data);
     }
     elsif ($type eq 'text') {
         $headers->{'content-type'} = 'text/plain; charset=UTF-8';

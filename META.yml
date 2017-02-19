@@ -21,6 +21,7 @@ no_index:
 requires:
   Async::ContextSwitcher: 0
   Carp: 0
+  Encode: 0
   JSON: 0
   Promises: 0
   Scalar::Util: 0

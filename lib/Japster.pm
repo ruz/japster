@@ -32,7 +32,7 @@ __PACKAGE__->register_exceptions(
 
 sub init {
     my $self = shift;
-    confess "base_url required" unless $self->{base_url};
+    $self->{base_url} //= '/';
     $self->{base_url} .= '/' unless $self->{base_url} =~ m{/$};
     return $self;
 }
@@ -211,7 +211,8 @@ sub format_error {
         return $err->format;
     }
     elsif ( !ref $err ) {
-        return [ 500, ['Content-Type' => 'text/plain' ], [$err] ];
+        warn $err;
+        return $self->exception('internal')->format;
     }
     else {
     };
@@ -284,9 +285,10 @@ sub find_resource {
 
     my $resource = $args{resource};
     return $resource->find( query => $query )
-    ->then( cb_w_context {
+    ->then( sub {
+        my $res = shift;
         return $self->resource_response(
-            data => shift,
+            data => $res->{data},
             type => $resource->type,
             links => { self => $resource->type },
         );
