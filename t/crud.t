@@ -35,6 +35,13 @@ sub find {
     })->promise;
 }
 
+sub remove {
+    my $self = shift;
+    my %args = @_;
+    delete $MyApp::Model::Tag::TAGS{ $args{id} } or $self->exception('not_found');
+    return deferred->resolve->promise;
+}
+
 sub create {
     my $self = shift;
     my %args = @_;
@@ -147,6 +154,31 @@ Japster::Test->check_success_request(
             },
 
         ],
+        links => { self => '/tags' },
+    },
+);
+
+Japster::Test->check_success_request(
+    method => 'DELETE',
+    uri => '/tags/1',
+    expected_status => 204,
+);
+
+Japster::Test->check_error_request(
+    method => 'DELETE',
+    uri => '/tags/1',
+    expected_status => 404,
+);
+
+Japster::Test->check_error_request(
+    uri => '/tags/1',
+    expected_status => 404,
+);
+
+Japster::Test->check_success_request(
+    uri => '/tags',
+    expected => {
+        data => [],
         links => { self => '/tags' },
     },
 );

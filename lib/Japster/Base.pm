@@ -51,6 +51,10 @@ sub simple_psgi_response {
         $headers->{'content-type'} = 'text/html; charset=UTF-8';
         $data = Encode::encode_utf8($data);
     }
+    elsif ($type eq 'no_content') {
+        $status = 204;
+        $data = '';
+    }
     else {
         die "Unknown type '$type'";
     }

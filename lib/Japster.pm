@@ -64,6 +64,7 @@ my %methods_map = (
     resource => {
         get => 'load_resource',
         patch => 'update_resource',
+        delete => 'remove_resource',
     },
     related => {
         get => 'load_related',
@@ -72,7 +73,7 @@ my %methods_map = (
         get => 'load_relationship',
         post => 'add_relationship',
         patch => 'set_relationship',
-        delete => 'del_relationship',
+        delete => 'remove_relationship',
     },
 );
 
@@ -134,11 +135,6 @@ sub handle {
     ->catch(sub {
         die $self->format_error( @_ );
     });
-}
-
-sub map_to_method {
-    my $self = shift;
-
 }
 
 sub format {
@@ -349,6 +345,23 @@ sub update_resource {
             type => $resource->type,
             links => { self => $resource->type . '/'. $o->{id} },
         );
+    });
+}
+
+sub remove_resource {
+    my $self = shift;
+    my %args = (
+        resource => undef,
+        id => undef,
+        @_
+    );
+    my $resource = $args{resource};
+    return $resource->remove( id => $args{id} )
+    ->then( sub {
+        my $res = shift || {};
+        return $self->simple_psgi_response('no_content') unless $res->{meta};
+
+        die 'not implemented';
     });
 }
 

@@ -39,4 +39,8 @@ sub create {
     die shift->exception('not_implemented', method => 'create');
 }
 
+sub remove {
+    die shift->exception('not_implemented', method => 'remove');
+}
+
 1;

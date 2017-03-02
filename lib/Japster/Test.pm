@@ -22,14 +22,16 @@ sub check_success_request {
 
         is ref $res->[2], 'ARRAY', 'an array';
 
-        my $json = join '', @{$res->[2]};
-        my $data;
-        eval { $data = JSON->new->utf8->decode($json); 1 }
-            or fail('is not json: '. $@);
-
         my $expected = $args{expected};
-        is_deeply($data, $expected, 'correct response')
-            or diag( "got: ". Dumper($data) ."expected: ". Dumper($expected) );
+        if ( $expected ) {
+            my $json = join '', @{$res->[2]};
+            my $data;
+            eval { $data = JSON->new->utf8->decode($json); 1 }
+                or fail('is not json: '. $@);
+
+            is_deeply($data, $expected, 'correct response')
+                or diag( "got: ". Dumper($data) ."expected: ". Dumper($expected) );
+        }
     })
     ->catch(sub {
         fail( "error is not expected: ". Dumper(\@_) );
