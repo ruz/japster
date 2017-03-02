@@ -57,8 +57,9 @@ sub name {
 
 sub create {
     shift;
-    state $i = 1;
-    return bless { @_, id => $i++ }, __PACKAGE__;
+    state $i = 0;
+    $i++;
+    return $TAGS{$i} = bless { @_, id => $i }, __PACKAGE__;
 }
 
 package main;
@@ -94,6 +95,25 @@ Japster::Test->check_success_request(
         },
     },
     expected_status => 201,
+    expected => {
+        'data' => {
+            'type' => 'tags',
+            'id' => '1',
+            'attributes' => {
+                'name' => 'back',
+            },
+            'links' => {
+                'self' => '/tags/1',
+            }
+        },
+        'links' => {
+            'self' => '/tags/1',
+        },
+    },
+);
+
+Japster::Test->check_success_request(
+    uri => '/tags/1',
     expected => {
         'data' => {
             'type' => 'tags',
