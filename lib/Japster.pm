@@ -27,7 +27,12 @@ __PACKAGE__->register_exceptions(
         status => 405,
         title => 'Method Not Allowed',
         message => 'Requested HTTP method is not allowed',
-    }
+    },
+    not_found => {
+        status => 404,
+        title => 'Not found',
+        message => 'Resource requested doesn\'t exist',
+    },
 );
 
 sub init {
@@ -51,6 +56,26 @@ sub register_resource {
     $MODEL_TO_CLASS{ $class->model_class } = $class;
 }
 
+my %methods_map = (
+    collection => {
+        get => 'find_resource',
+        post => 'create_resource',
+    },
+    resource => {
+        get => 'load_resource',
+        patch => 'update_resource',
+    },
+    related => {
+        get => 'load_related',
+    },
+    relationship => {
+        get => 'load_relationship',
+        post => 'add_relationship',
+        patch => 'set_relationship',
+        delete => 'del_relationship',
+    },
+);
+
 sub handle {
     my $self = shift;
     my %args = (
@@ -60,7 +85,7 @@ sub handle {
     my $env = $args{env};
 
     my $path = $env->{PATH_INFO};
-    $path = '/' unless $path;
+    $path = '/' unless defined $path && length $path;
     $path =~ s{^\Q$self->{base_url}}{}
         or return undef;
     $path =~ s{/$}{};
@@ -70,81 +95,50 @@ sub handle {
     return undef if defined $id && !length $id;
 
     my $class = $TYPE_TO_CLASS{ $type } or return undef;
-    my $resource = $class->new( %args );
+    my $resource = $class->new( env => $env );
 
-    my $res;
+    my ($method, %method_args);
     eval {
-        my $method = $env->{REQUEST_METHOD};
+        my $http_method = $env->{REQUEST_METHOD};
         unless ( defined $id ) {
-            if ( $method eq 'GET' ) {
-                return $res = $self->find_resource( %args, resource => $resource, );
-            }
-            elsif ( $method eq 'POST' ) {
-                return $res = $self->create_resource( %args, resource => $resource );
-            }
-            else {
-                return $res = $self->exception('method_not_allowed');
-            }
+            $method = $methods_map{collection}{lc $http_method}
+                or die $self->exception('method_not_allowed');
         }
         elsif ( !@rest ) {
-            if ( $method eq 'GET' ) {
-                return $res = $self->load_resource( %args, resource => $resource, id => $id );
-            }
-            elsif ( $method eq 'PATCH' ) {
-                return $res = $self->update_resource( %args, resource => $resource, id => $id );
-            }
-            else {
-                return $res = $self->exception('method_not_allowed');
-            }
+            $method = $methods_map{resource}{lc $http_method}
+                or die $self->exception('method_not_allowed');
+            %method_args = ( id => $id );
         }
         elsif ( @rest == 1 && $resource->relationships->{ $rest[0] } ) {
-            return $res = $self->exception('method_not_allowed')
-                if $method ne 'GET';
-
-            return $res = $self->load_related(
-                %args,
-                resource => $resource,
-                id => $id,
-                name => $rest[0],
-                relationship => $resource->relationships->{ $rest[0] },
-            );
+            $method = $methods_map{related}{lc $http_method}
+                or die $self->exception('method_not_allowed');
+            %method_args = ( id => $id, name => $rest[0] );
         }
-        elsif ( @rest == 2 && $rest[0] eq 'relationships' ) {
-            my $rel_name = $rest[1] or return $res = undef;
-            return $res = undef unless my $rel_info = $resource->relationships->{$rel_name};
-
-            %args = (
-                %args,
-                resource => $resource,
-                id => $id,
-                name => $rel_name,
-                info => $rel_info,
-            );
-            if ( $method eq 'GET' ) {
-                return $res = $self->load_relationship( %args );
-            }
-            elsif ( $method eq 'POST' ) {
-                return $res = $self->add_relationship( %args );
-            }
-            elsif ( $method eq 'PATCH' ) {
-                return $res = $self->set_relationship( %args );
-            }
-            elsif ( $method eq 'DELETE' ) {
-                return $res = $self->del_relationship( %args );
-            }
-            else {
-                return $res = $self->exception('method_not_allowed');
-            }
-        }
-        else {
-            $res = undef;
+        elsif (
+            @rest == 2 && $rest[0] eq 'relationships'
+            && $rest[1] && $resource->relationships->{ $rest[1] }
+        ) {
+            $method = $methods_map{relationship}{lc $http_method}
+                or die $self->exception('method_not_allowed');
+            %method_args = ( id => $id, name => $rest[1] );
         }
         1;
     } or return deferred->reject( $self->format_error($@) )->promise;
-    return $res unless $res;
-    return $res->catch(sub {
+    return undef unless $method;
+
+    return $self->$method(
+        env => $env,
+        resource => $resource,
+        %method_args,
+    )
+    ->catch(sub {
         die $self->format_error( @_ );
     });
+}
+
+sub map_to_method {
+    my $self = shift;
+
 }
 
 sub format {
@@ -305,8 +299,11 @@ sub load_resource {
     my $resource = $args{resource};
     return $resource->load( id => $args{id} )
     ->then( cb_w_context {
+        my $res = shift;
+        die $self->exception('not_found') unless $res->{data} || $res->{model};
         return $self->resource_response(
-            data => shift,
+            data => $res->{data},
+            model => $res->{model},
             type => $resource->type,
             links => { self => $resource->type . '/'. $args{id} },
         );
@@ -322,11 +319,14 @@ sub create_resource {
     my $resource = $args{resource};
     return $resource->create( %args, fields => $fields )
     ->then( cb_w_context {
-        my $model = shift;
+        my $res = shift;
+        die $self->exception('internal') unless $res->{data} || $res->{model};
+        my $id = $res->{data}? $res->{data}->{id} : $resource->id( model => $res->{model} );
         return $self->resource_response(
-            data => $model,
+            data => $res->{data},
+            model => $res->{model},
             type => $resource->type,
-            links => { self => $resource->type . '/'. $resource->id( model => $model ) },
+            links => { self => $resource->type . '/'. $id },
             status => 201,
         );
     });
@@ -405,6 +405,7 @@ sub add_relationship {
 sub request_body {
     my $self = shift;
     my $env = shift;
+    require Plack::Request;
     my $plackr = Plack::Request->new($env);
     use JSON;
     return JSON->new->utf8->decode( $plackr->raw_body );
@@ -495,12 +496,18 @@ sub resource_response {
         @_
     );
 
-    my $e = $args{data};
-    if ( ref $e eq 'ARRAY' ) {
-        $_ = $self->format( $_, type => $args{type} ) foreach @$e;
+    my $e;
+    if ( $args{data} ) {
+        $e = $args{data};
     }
-    else {
-        $e = $self->format( $e, type => $args{type} );
+    elsif ( $args{model} ) {
+        $e = $args{model};
+        if ( ref $e eq 'ARRAY' ) {
+            $_ = $self->format( $_, type => $args{type} ) foreach @$e;
+        }
+        else {
+            $e = $self->format( $e, type => $args{type} );
+        }
     }
 
     my $res = {

@@ -9,7 +9,7 @@ sub check_success_request {
     my $self = shift;
     my %args = (@_);
 
-    my $env = $self->basic_request_env($args{uri});
+    my $env = $self->basic_request_env($args{uri}, %args);
     my $j = $args{japster} || Japster->new;
     return $j->handle(env => $env)
     ->then(sub {
@@ -18,7 +18,7 @@ sub check_success_request {
         is ref $res, 'ARRAY', 'an array';
         is scalar @$res, 3, 'with three elements';
 
-        is $res->[0], 200, 'HTTP status is 200';
+        is $res->[0], $args{expected_status} || 200, 'HTTP status is 200';
 
         is ref $res->[2], 'ARRAY', 'an array';
 
@@ -33,6 +33,35 @@ sub check_success_request {
     })
     ->catch(sub {
         fail( "error is not expected: ". Dumper(\@_) );
+    });
+}
+
+sub check_error_request {
+    my $self = shift;
+    my %args = (@_);
+
+    my $env = $self->basic_request_env($args{uri});
+    my $j = $args{japster} || Japster->new;
+    return $j->handle(env => $env)
+    ->then(sub {
+        fail( "success is not expected: ". Dumper(\@_) );
+    })
+    ->catch(sub {
+        my $res = shift;
+
+        is ref $res, 'ARRAY', 'an array';
+        is scalar @$res, 3, 'with three elements';
+
+        is $res->[0], $args{expected_status}, 'HTTP status is '. $args{expected_status};
+
+        is ref $res->[2], 'ARRAY', 'an array';
+
+        my $json = join '', @{$res->[2]};
+        my $data;
+        eval { $data = JSON->new->utf8->decode($json); 1 }
+            or fail('is not json: '. $@);
+
+        is ref $data->{errors}, 'ARRAY', 'an array of errors';
     });
 }
 

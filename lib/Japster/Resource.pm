@@ -2,12 +2,15 @@ use strict;
 use warnings;
 
 package Japster::Resource;
+use base 'Japster::Base';
 
-sub new {
-    my $proto = shift;
-    my $self = bless {@_}, ref($proto)||$proto;
-    return $self;
-}
+__PACKAGE__->register_exceptions(
+    "not_implemented" => {
+        "status" => "403",
+        "title" =>  "Not implemented",
+        "message" => "This operation is not implemented",
+    },
+);
 
 sub type {
     my $self = shift;
@@ -23,5 +26,17 @@ sub id {
 sub attributes { return {} }
 
 sub relationships { return {} }
+
+sub load {
+    die shift->exception('not_implemented', method => 'load');
+}
+
+sub find {
+    die shift->exception('not_implemented', method => 'find');
+}
+
+sub create {
+    die shift->exception('not_implemented', method => 'create');
+}
 
 1;
