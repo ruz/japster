@@ -283,6 +283,7 @@ sub find_resource {
         my $res = shift;
         return $self->resource_response(
             data => $res->{data},
+            model => $res->{model},
             type => $resource->type,
             links => { self => $resource->type },
         );

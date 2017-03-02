@@ -31,7 +31,7 @@ sub load {
 
 sub find {
     return deferred->resolve({
-        data => [ keys %MyApp::Model::Tag::TAGS ],
+        model => [ map $MyApp::Model::Tag::TAGS{$_}, sort keys %MyApp::Model::Tag::TAGS ],
     })->promise;
 }
 
@@ -128,6 +128,26 @@ Japster::Test->check_success_request(
         'links' => {
             'self' => '/tags/1',
         },
+    },
+);
+
+Japster::Test->check_success_request(
+    uri => '/tags',
+    expected => {
+        data => [
+            {
+                'type' => 'tags',
+                'id' => '1',
+                'attributes' => {
+                    'name' => 'back',
+                },
+                'links' => {
+                    'self' => '/tags/1',
+                },
+            },
+
+        ],
+        links => { self => '/tags' },
     },
 );
 
