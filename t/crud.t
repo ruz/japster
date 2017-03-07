@@ -2,6 +2,12 @@ use strict;
 use warnings;
 use v5.10;
 
+$SIG{KILL} = $SIG{HUP} = $SIG{TERM} = $SIG{QUIT} = sub {
+    use Carp;
+    print STDERR Carp::longmess(shift);
+    exit;
+};
+
 use Japster::Test;
 use Test::More;
 
@@ -24,15 +30,15 @@ sub attributes {
 sub load {
     my $self = shift;
     my %args = @_;
-    return deferred->resolve({
-        model => $MyApp::Model::Tag::TAGS{ $args{id} }
-    })->promise;
+    return deferred->resolve(
+        $MyApp::Model::Tag::TAGS{ $args{id} }
+    )->promise;
 }
 
 sub find {
-    return deferred->resolve({
-        model => [ map $MyApp::Model::Tag::TAGS{$_}, sort keys %MyApp::Model::Tag::TAGS ],
-    })->promise;
+    return deferred->resolve(
+        [ map $MyApp::Model::Tag::TAGS{$_}, sort keys %MyApp::Model::Tag::TAGS ],
+    )->promise;
 }
 
 sub remove {
@@ -45,9 +51,9 @@ sub remove {
 sub create {
     my $self = shift;
     my %args = @_;
-    return deferred->resolve({
-        model => MyApp::Model::Tag->create( %{ $args{fields} } ),
-    })->promise;
+    return deferred->resolve(
+        MyApp::Model::Tag->create( %{ $args{fields} } )
+    )->promise;
 }
 
 package MyApp::Model::Tag;

@@ -12,7 +12,6 @@ Japster - helps setup async JSONAPI application
 =cut
 
 use Promises qw(deferred);
-use Async::ContextSwitcher;
 use Scalar::Util qw(blessed);
 use Carp qw(confess);
 use URI::Escape qw(uri_unescape);
@@ -276,11 +275,9 @@ sub find_resource {
     my $resource = $args{resource};
     return $resource->find( query => $query )
     ->then( sub {
-        my $res = shift;
         return $self->resource_response(
-            data => $res->{data},
-            model => $res->{model},
-            type => $resource->type,
+            shift,
+            multi => 1,
             links => { self => $resource->type },
         );
     });
@@ -295,14 +292,11 @@ sub load_resource {
     );
     my $resource = $args{resource};
     return $resource->load( id => $args{id} )
-    ->then( cb_w_context {
+    ->then( sub {
         my $res = shift;
-        die $self->exception('not_found') unless $res->{data} || $res->{model};
+        die $self->exception('not_found') unless $res;
         return $self->resource_response(
-            data => $res->{data},
-            model => $res->{model},
-            type => $resource->type,
-            links => { self => $resource->type . '/'. $args{id} },
+            $res, single => 1,
         );
     });
 }
@@ -315,15 +309,10 @@ sub create_resource {
 
     my $resource = $args{resource};
     return $resource->create( %args, fields => $fields )
-    ->then( cb_w_context {
-        my $res = shift;
-        die $self->exception('internal') unless $res->{data} || $res->{model};
-        my $id = $res->{data}? $res->{data}->{id} : $resource->id( model => $res->{model} );
+    ->then( sub {
         return $self->resource_response(
-            data => $res->{data},
-            model => $res->{model},
-            type => $resource->type,
-            links => { self => $resource->type . '/'. $id },
+            shift,
+            single => 1,
             status => 201,
         );
     });
@@ -338,13 +327,8 @@ sub update_resource {
 
     my $data = $self->request_body( $args{env} );
     return $resource->update( %args, fields => $fields )
-    ->then( cb_w_context {
-        my $o = shift;
-        return $self->resource_response(
-            data => $o,
-            type => $resource->type,
-            links => { self => $resource->type . '/'. $o->{id} },
-        );
+    ->then( sub {
+        return $self->resource_response( shift, single => 1 );
     });
 }
 
@@ -375,9 +359,9 @@ sub load_related {
     my $resource = $args{resource};
     return $resource->$method(
         id => $args{id},
-    )->then( cb_w_context {
+    )->then( sub {
         return $self->resource_response(
-            data => shift,
+            shift,
             links => { self => $resource->type . '/'. $args{id} .'/'. $args{name} },
         );
     });
@@ -407,7 +391,7 @@ sub add_relationship {
         id => $args{id},
         data => $data->{data},
     )
-    ->then( cb_w_context {
+    ->then( sub {
         my $res = shift;
         if ( $res->{included} ) {
             $_ = $self->format($_) foreach @{ $res->{included} };
@@ -502,35 +486,46 @@ sub query_parameters {
 
 sub resource_response {
     my $self = shift;
+    my $data = shift;
     my %args = (
-        data => undef,
-        type => undef,
+        single => 0,
+        multi => 0,
         links => undef,
         status => undef,
         @_
     );
 
-    my $e;
-    if ( $args{data} ) {
-        $e = $args{data};
+    my %res;
+
+    unless ( defined $data ) {
+        die "undef not allowed, list expected" if $args{multi};
+        $res{data} = undef;
     }
-    elsif ( $args{model} ) {
-        $e = $args{model};
-        if ( ref $e eq 'ARRAY' ) {
-            $_ = $self->format( $_, type => $args{type} ) foreach @$e;
-        }
-        else {
-            $e = $self->format( $e, type => $args{type} );
-        }
+    elsif ( blessed $data ) {
+        die "single object not allowed, list expected" if $args{multi};
+        $res{data} = $self->format($data);
+    }
+    elsif ( ref $data eq 'ARRAY' ) {
+        die "list not allowed, single object expected" if $args{single};
+        $res{data} = [ map $self->format($_), @$data ];
+    }
+    elsif ( ref $data eq 'HASH' ) {
+        die "not yet implemented";
+    }
+    else {
+        die "unexpected data '$data' for top level response";
     }
 
-    my $res = {
-        links => {
-            self => $self->{base_url} . $args{links}{self},
-        },
-        data => $e,
-    };
-    return $self->simple_psgi_response( $args{status}||200, json => $res );
+    if ( $args{links} ) {
+        while ( my ($k, $v) = each %{ $args{links} } ) {
+            $res{links}{$k} = $self->{base_url} . $v;
+        }
+    }
+    if ( $args{single} && !$res{links}{self} && $res{data} ) {
+        $res{links}{self} = $self->{base_url} . $res{data}{type} .'/'. $res{data}{id}
+    }
+
+    return $self->simple_psgi_response( $args{status}||200, json => \%res );
 }
 
 1;
