@@ -32,6 +32,11 @@ __PACKAGE__->register_exceptions(
         title => 'Not found',
         message => 'Resource requested doesn\'t exist',
     },
+    'no_client_generated_ids' => {
+        status => 403,
+        title => 'Forbidden',
+        message => 'Client generated IDs are forbidden',
+    },
 );
 
 sub init {
@@ -305,9 +310,14 @@ sub create_resource {
     my $self = shift;
     my %args = @_;
 
-    my $fields = $self->parse_resource_from_request( %args );
-
     my $resource = $args{resource};
+
+    my $fields = $self->parse_resource_from_request( %args );
+    if ( $fields->{id} ) {
+        die $self->exception('no_client_generated_ids')
+            unless $resource->client_generated_id;
+    }
+
     return $resource->create( %args, fields => $fields )
     ->then( sub {
         return $self->resource_response(

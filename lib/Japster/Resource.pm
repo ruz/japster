@@ -23,6 +23,10 @@ sub id {
     return $args{model}->id . "";
 }
 
+sub client_generated_id {
+    return 0;
+}
+
 sub attributes { return {} }
 
 sub relationships { return {} }
