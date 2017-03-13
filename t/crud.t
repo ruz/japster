@@ -56,6 +56,14 @@ sub create {
     )->promise;
 }
 
+sub update {
+    my $self = shift;
+    my %args = @_;
+    return deferred->resolve(
+        $MyApp::Model::Tag::TAGS{ $args{id} }->update( %{ $args{fields} } )
+    )->promise;
+}
+
 package MyApp::Model::Tag;
 
 our %TAGS;
@@ -75,6 +83,12 @@ sub create {
     return $TAGS{$i} = bless { @_, id => $i }, __PACKAGE__;
 }
 
+sub update {
+    my $self = shift;
+    %$self = (%$self, @_);
+    return $self;
+}
+
 package main;
 use Data::Dumper;
 
@@ -83,6 +97,7 @@ mark_as_loaded('MyApp::Model::Tag');
 mark_as_loaded('MyApp::Resource::Tag');
 Japster->register_resource('MyApp::Resource::Tag');
 
+note "get tags, no so far";
 Japster::Test->check_success_request(
     uri => '/tags',
     expected => {
@@ -91,11 +106,13 @@ Japster::Test->check_success_request(
     },
 );
 
+note "get not existing tag";
 Japster::Test->check_error_request(
     uri => '/tags/1',
     expected_status => 404,
 );
 
+note "create a tag";
 Japster::Test->check_success_request(
     method => 'POST',
     uri => '/tags',
@@ -125,6 +142,7 @@ Japster::Test->check_success_request(
     },
 );
 
+note "get a tag";
 Japster::Test->check_success_request(
     uri => '/tags/1',
     expected => {
@@ -144,6 +162,7 @@ Japster::Test->check_success_request(
     },
 );
 
+note "get list of tags";
 Japster::Test->check_success_request(
     uri => '/tags',
     expected => {
@@ -164,6 +183,57 @@ Japster::Test->check_success_request(
     },
 );
 
+note "update a tag";
+Japster::Test->check_success_request(
+    method => 'PATCH',
+    uri => '/tags/1',
+    json => {
+        "data" => {
+            "type" => "tags",
+            "id" => "1",
+            "attributes" => {
+                "name" => "front",
+            },
+        },
+    },
+    expected => {
+        'data' => {
+            'type' => 'tags',
+            'id' => '1',
+            'attributes' => {
+                'name' => 'front',
+            },
+            'links' => {
+                'self' => '/tags/1',
+            }
+        },
+        'links' => {
+            'self' => '/tags/1',
+        },
+    },
+);
+
+note "get a tag after update";
+Japster::Test->check_success_request(
+    uri => '/tags/1',
+    expected => {
+        'data' => {
+            'type' => 'tags',
+            'id' => '1',
+            'attributes' => {
+                'name' => 'front',
+            },
+            'links' => {
+                'self' => '/tags/1',
+            }
+        },
+        'links' => {
+            'self' => '/tags/1',
+        },
+    },
+);
+
+note "delete a tag";
 Japster::Test->check_success_request(
     method => 'DELETE',
     uri => '/tags/1',
