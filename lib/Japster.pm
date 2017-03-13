@@ -103,32 +103,29 @@ sub handle {
     my $resource = $class->new( env => $env );
 
     my ($method, %method_args);
-    eval {
-        my $http_method = $env->{REQUEST_METHOD};
-        unless ( defined $id ) {
-            $method = $methods_map{collection}{lc $http_method}
-                or die $self->exception('method_not_allowed');
-        }
-        elsif ( !@rest ) {
-            $method = $methods_map{resource}{lc $http_method}
-                or die $self->exception('method_not_allowed');
-            %method_args = ( id => $id );
-        }
-        elsif ( @rest == 1 && $resource->relationships->{ $rest[0] } ) {
-            $method = $methods_map{related}{lc $http_method}
-                or die $self->exception('method_not_allowed');
-            %method_args = ( id => $id, name => $rest[0] );
-        }
-        elsif (
-            @rest == 2 && $rest[0] eq 'relationships'
-            && $rest[1] && $resource->relationships->{ $rest[1] }
-        ) {
-            $method = $methods_map{relationship}{lc $http_method}
-                or die $self->exception('method_not_allowed');
-            %method_args = ( id => $id, name => $rest[1] );
-        }
-        1;
-    } or return deferred->reject( $self->format_error($@) )->promise;
+    my $http_method = $env->{REQUEST_METHOD};
+    unless ( defined $id ) {
+        $method = $methods_map{collection}{lc $http_method}
+            or die $self->exception('method_not_allowed');
+    }
+    elsif ( !@rest ) {
+        $method = $methods_map{resource}{lc $http_method}
+            or die $self->exception('method_not_allowed');
+        %method_args = ( id => $id );
+    }
+    elsif ( @rest == 1 && $resource->relationships->{ $rest[0] } ) {
+        $method = $methods_map{related}{lc $http_method}
+            or die $self->exception('method_not_allowed');
+        %method_args = ( id => $id, name => $rest[0] );
+    }
+    elsif (
+        @rest == 2 && $rest[0] eq 'relationships'
+        && $rest[1] && $resource->relationships->{ $rest[1] }
+    ) {
+        $method = $methods_map{relationship}{lc $http_method}
+            or die $self->exception('method_not_allowed');
+        %method_args = ( id => $id, name => $rest[1] );
+    }
     return undef unless $method;
 
     return $self->$method(
