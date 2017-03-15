@@ -113,7 +113,7 @@ sub basic_request_env {
 
     if ( $args{json} ) {
         $res->{CONTENT_TYPE} = 'application/json';
-        my $buf = JSON::XS->new->pretty->utf8->encode(delete $args{json});
+        my $buf = JSON->new->pretty->utf8->encode(delete $args{json});
         $res->{CONTENT_LENGTH} = length $buf;
         open my $fh, '<:raw', \$buf;
         $res->{'psgi.input'} = $fh;
