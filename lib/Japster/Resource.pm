@@ -8,7 +8,7 @@ __PACKAGE__->register_exceptions(
     "not_implemented" => {
         "status" => "403",
         "title" =>  "Not implemented",
-        "message" => "This operation is not implemented",
+        "detail" => "This operation is not implemented",
     },
 );
 
@@ -32,19 +32,19 @@ sub attributes { return {} }
 sub relationships { return {} }
 
 sub load {
-    die shift->exception('not_implemented', method => 'load');
+    die shift->exception('not_implemented', meta => { method => 'load' } );
 }
 
 sub find {
-    die shift->exception('not_implemented', method => 'find');
+    die shift->exception('not_implemented', meta => { method => 'find' } );
 }
 
 sub create {
-    die shift->exception('not_implemented', method => 'create');
+    die shift->exception('not_implemented', meta => { method => 'create' } );
 }
 
 sub remove {
-    die shift->exception('not_implemented', method => 'remove');
+    die shift->exception('not_implemented', meta => { method => 'remove' } );
 }
 
 1;

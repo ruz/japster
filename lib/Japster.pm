@@ -17,25 +17,25 @@ use Carp qw(confess);
 use URI::Escape qw(uri_unescape);
 
 __PACKAGE__->register_exceptions(
-    "bad_relationship_operation" => {
-        "status" => "403",
-        "title" =>  "Forbidden",
-        "message" => "This operation on this relation is not allowd",
+    bad_relationship_operation => {
+        status => 403,
+        title =>  "Operation forbidden",
+        detail => "This operation on this relation is not allowed",
     },
     method_not_allowed => {
         status => 405,
         title => 'Method Not Allowed',
-        message => 'Requested HTTP method is not allowed',
+        detail => 'Requested HTTP method is not allowed',
     },
     not_found => {
         status => 404,
         title => 'Not found',
-        message => 'Resource requested doesn\'t exist',
+        detail => 'Resource requested doesn\'t exist',
     },
-    'no_client_generated_ids' => {
+    no_client_generated_ids => {
         status => 403,
         title => 'Forbidden',
-        message => 'Client generated IDs are forbidden',
+        detail => 'Client generated IDs are forbidden',
     },
 );
 

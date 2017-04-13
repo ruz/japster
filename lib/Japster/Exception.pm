@@ -11,16 +11,34 @@ our %FORMATTERS = (
     default => sub {
         my $self = shift;
         $JSON ||= JSON->new->utf8;
+        my ($status, $code, $title, $detail, $meta, $about, $pointer, $parameter) = (
+            $self->status,
+
+            $self->code,
+
+            $self->title,
+            $self->detail,
+            $self->meta,
+            $self->about,
+
+            $self->pointer,
+            $self->parameter,
+        );
+        $status ||= 500;
+
+        my %res = ( status => "$status" );
+        $res{code} = "$code" if defined $code;
+        $res{title} = "$title" if defined $title;
+        $res{detail} = "$detail" if defined $detail;
+        $res{meta} = $meta if defined $meta;
+        $res{links}{about} = $about if defined $about;
+        $res{source}{pointer} = $pointer if defined $pointer;
+        $res{source}{parameter} = $parameter if defined $parameter;
+
         return [
-            $self->status || 500,
+            $status,
             ['content-type' => 'application/json; charset=UTF-8'],
-            [
-                $JSON->encode({errors => [{
-                    status => $self->status,
-                    code => $self->code,
-                    message => $self->message,
-                }]})
-            ],
+            [ $JSON->encode({errors => [\%res]}) ],
         ];
     },
 );
@@ -28,8 +46,8 @@ our %FORMATTERS = (
 
 __PACKAGE__->register(
     __PACKAGE__,
-    required => { status => 500, message => 'Internal server error'},
-    invalid => { status => 500, message => 'Internal server error'},
+    required => { status => 500, title => 'Internal server error'},
+    invalid => { status => 500, title => 'Internal server error'},
 );
 
 sub new {
@@ -98,8 +116,15 @@ sub format {
 }
 
 sub status { shift->{status} }
+
 sub code { shift->{code} }
-sub message { shift->{message} }
+
+sub title { shift->{title} }
+sub detail { shift->{detail} }
+sub meta { shift->{meta} }
+sub about { shift->{about} }
+
+sub pointer { shift->{pointer} }
+sub parameter { shift->{parameter} }
 
 1;
-
