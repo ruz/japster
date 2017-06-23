@@ -5,6 +5,8 @@ use v5.16;
 package Japster;
 use base 'Japster::Base';
 
+our $VERSION = '0.01';
+
 =head1 NAME
 
 Japster - helps setup async JSONAPI application
@@ -534,5 +536,15 @@ sub resource_response {
 
     return $self->simple_psgi_response( $args{status}||200, json => \%res );
 }
+
+=head1 AUTHOR
+
+Ruslan Zakirov E<lt>Ruslan.Zakirov@gmail.comE<lt>
+
+=head1 LICENSE
+
+Under the same terms as perl itself.
+
+=cut
 
 1;

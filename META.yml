@@ -1,5 +1,7 @@
 ---
 abstract: 'helps setup async JSONAPI application'
+author:
+  - 'Ruslan Zakirov <Ruslan.Zakirov@gmail.com<'
 build_requires:
   ExtUtils::MakeMaker: 6.59
   Test::More: 0.88
@@ -7,8 +9,8 @@ configure_requires:
   ExtUtils::MakeMaker: 6.59
 distribution_type: module
 dynamic_config: 1
-generated_by: 'Module::Install version 1.17'
-license: unknown
+generated_by: 'Module::Install version 1.18'
+license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4
@@ -27,4 +29,6 @@ requires:
   Scalar::Util: 0
   URI::Escape: 0
   perl: 5.16.0
-version: undef
+resources:
+  license: http://dev.perl.org/licenses/
+version: 0.01
