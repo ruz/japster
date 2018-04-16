@@ -179,7 +179,12 @@ sub format {
                 related => $self->{base_url} . $res{type} .'/'. $res{id} . '/'. $name,
             },
         );
-        if ( my $m = $resource->can("rel_${name}_embed") ) {
+        my $method_name = $info->{method} ||= do {
+            my $tmp = lc "rel_${name}_embed";
+            $tmp =~ s/-/_/g;
+            $tmp
+        };
+        if ( my $m = $resource->can( $method_name ) ) {
             $rel{data} = $m->( $resource, model => $obj );
         }
         elsif ( $info->{type} && $info->{field} ) {
