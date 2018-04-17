@@ -13,7 +13,7 @@ Japster - helps setup async JSONAPI application
 
 =cut
 
-use Promises qw(deferred);
+use Promises qw(deferred collect);
 use Scalar::Util qw(blessed);
 use Carp qw(confess);
 use URI::Escape qw(uri_unescape);
@@ -160,6 +160,7 @@ sub format {
         }
     }
 
+    my @p;
     my %res = (
         type => $resource->type,
         id => $resource->id( model => $obj ),
@@ -185,12 +186,23 @@ sub format {
             $tmp
         };
         if ( my $m = $resource->can( $method_name ) ) {
-            $rel{data} = $m->( $resource, model => $obj );
+            my $v = $m->( $resource, model => $obj );
+            if ( blessed $v && $v->can('then') ) {
+                push @p, $v->then(sub {
+                    $rel{data} = shift;
+                });
+            } else {
+                $rel{data} = $v;
+            }
         }
         elsif ( $info->{type} && $info->{field} ) {
             my $field = $info->{field};
             my $value = $obj->$field();
-            if ( $value ) {
+            if ( blessed $value && $value->can('then') ) {
+                push @p, $value->then(sub {
+                    $rel{data} = shift;
+                });
+            } elsif ( $value ) {
                 $rel{data} = { type => $info->{type}, id => $value };
             } else {
                 $rel{data} = undef;
@@ -198,7 +210,10 @@ sub format {
         }
         $res{relationships}{$name} = \%rel;
     }
-    return \%res;
+    return \%res unless @p;
+    return collect(@p)->then(sub {
+        return \%res;
+    });
 }
 
 sub format_error {
@@ -509,6 +524,7 @@ sub resource_response {
         @_
     );
 
+    my @p;
     my %res;
 
     unless ( defined $data ) {
@@ -517,11 +533,25 @@ sub resource_response {
     }
     elsif ( blessed $data ) {
         die "single object not allowed, list expected" if $args{multi};
-        $res{data} = $self->format($data);
+        my $v = $self->format($data);
+        if ( blessed $v && $v->can('then') ) {
+            push @p, $v->then(sub { $res{data} = shift; return; });
+        } else {
+            $res{data} = $v;
+        }
     }
     elsif ( ref $data eq 'ARRAY' ) {
         die "list not allowed, single object expected" if $args{single};
-        $res{data} = [ map $self->format($_), @$data ];
+        $res{data} = [];
+        while ( my ($i, $e) = each @$data ) {
+            my $v = $self->format($e);
+            if ( blessed $v && $v->can('then') ) {
+                my $li = $i;
+                push @p, $v->then(sub { $res{data}[$li] = shift; return; });
+            } else {
+                $res{data}[$i] = $v;
+            }
+        }
     }
     elsif ( ref $data eq 'HASH' ) {
         die "not yet implemented";
@@ -539,7 +569,12 @@ sub resource_response {
         $res{links}{self} = $self->{base_url} . $res{data}{type} .'/'. $res{data}{id}
     }
 
-    return $self->simple_psgi_response( $args{status}||200, json => \%res );
+    return $self->simple_psgi_response( $args{status}||200, json => \%res )
+        unless @p;
+
+    collect(@p)->then(sub {
+        return $self->simple_psgi_response( $args{status}||200, json => \%res )
+    });
 }
 
 =head1 AUTHOR
