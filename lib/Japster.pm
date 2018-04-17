@@ -445,7 +445,7 @@ sub query_parameters {
     return {} unless defined $env->{QUERY_STRING} && length $env->{QUERY_STRING};
 
     my @query =
-        map { s/\+/ /g; uri_unescape($_) }
+        map { my $s = $_; $s =~ s/\+/ /g; uri_unescape($s) }
         map { /=/ ? split(/=/, $_, 2) : ($_ => '') }
         split /[&;]/, $env->{QUERY_STRING};
 
